@@ -69,7 +69,7 @@
       "version": "0.0.1",
       "channel": "my-channel1",
       "lang": "java",
-      "directory": "./chaincodes/kuczo_chaincodes",
+      "directory": "./chaincodes/chaincode",
       "privateData": []
     }
   ],
