@@ -25,6 +25,7 @@ val versions =
         "mockito" to "5.11.0",
         "fabric" to "2.5.0",
         "gson" to "2.10.1",
+        "jackson" to "2.21.1",
         "assertj" to "3.24.2",
         "junit" to "5.10.0")
 
@@ -34,6 +35,7 @@ dependencies {
   implementation("org.tinylog:tinylog-api:${versions["tinylog"]}")
   implementation("org.tinylog:tinylog-impl:${versions["tinylog"]}")
   implementation("com.google.code.gson:gson:${versions["gson"]}")
+  implementation("com.fasterxml.jackson.core:jackson-databind:${versions["jackson"]}")
 
   testImplementation("org.assertj:assertj-core:${versions["assertj"]}")
   testImplementation("org.junit.jupiter:junit-jupiter:${versions["junit"]}")
