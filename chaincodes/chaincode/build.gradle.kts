@@ -5,7 +5,6 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 plugins {
   application
   id("com.github.johnrengelman.shadow") version "7.1.2"
-  id("com.diffplug.spotless") version "6.19.0"
   id("io.freefair.lombok") version "8.6"
 }
 
@@ -63,15 +62,4 @@ tasks.named<JavaExec>("run") {
       mapOf(
           "CORE_CHAINCODE_ID_NAME" to "asset-transfer-java",
           "CORE_PEER_ADDRESS" to "127.0.0.1:7041"))
-}
-
-spotless {
-  java {
-    importOrder()
-    removeUnusedImports()
-    googleJavaFormat()
-    formatAnnotations()
-    licenseHeader("/* SPDX-License-Identifier: Apache-2.0 */")
-  }
-  kotlinGradle { ktfmt() }
 }
