@@ -9,7 +9,7 @@ import lombok.extern.jackson.Jacksonized;
 @Jacksonized
 public class Car {
     private final String ID;
-    private final String Make;
+    private final String Brand;
     private final String Model;
     private final String Color;
     private final String Owner;

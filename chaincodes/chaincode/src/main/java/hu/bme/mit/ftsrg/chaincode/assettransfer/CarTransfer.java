@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: Apache-2.0 */
 package hu.bme.mit.ftsrg.chaincode.assettransfer;
 
 import static hu.bme.mit.ftsrg.chaincode.assettransfer.Serializer.*;
@@ -23,6 +22,8 @@ import org.tinylog.Logger;
 @Default
 public final class CarTransfer implements ContractInterface {
 
+    private static final String MAINT_PREFIX = "MAINT_";
+
     @Transaction(name = "Ping")
     public String ping(Context ignoredCtx) {
         return "pong";
@@ -30,17 +31,26 @@ public final class CarTransfer implements ContractInterface {
 
     @Transaction(name = "InitLedger")
     public void initLedger(Context ctx) {
-        // Initializing the ledger with sample Car data
         List<Car> cars = List.of(
-                Car.builder().ID("car1").Make("Toyota").Model("Corolla").Color("Blue").Owner("Tomoko").Mileage(15000)
+                Car.builder().ID("car1").Brand("Toyota").Model("Corolla").Color("Blue").Owner("Tomoko").Mileage(15000)
                         .build(),
-                Car.builder().ID("car2").Make("Ford").Model("Mustang").Color("Red").Owner("Brad").Mileage(5000).build(),
-                Car.builder().ID("car3").Make("Tesla").Model("Model 3").Color("White").Owner("Jin Soo").Mileage(2000)
+                Car.builder().ID("car2").Brand("Ford").Model("Mustang").Color("Red").Owner("Brad").Mileage(5000)
+                        .build(),
+                Car.builder().ID("car3").Brand("Tesla").Model("Model 3").Color("White").Owner("Jin Soo").Mileage(2000)
                         .build());
+
+        List<CarMaintenance> maintenances = List.of(
+                CarMaintenance.builder().ID("car1").MaintainedBy("Joseph").build());
 
         for (var car : cars) {
             ctx.getStub().putStringState(car.ID(), serialize(car));
             Logger.info("Car {} initialized", car.ID());
+        }
+
+        for (var maintenance : maintenances) {
+            String maintKey = MAINT_PREFIX + maintenance.ID();
+            ctx.getStub().putStringState(maintKey, serialize(maintenance));
+            Logger.info("Car maintenance record for {} initialized", maintenance.ID());
         }
     }
 
@@ -51,7 +61,7 @@ public final class CarTransfer implements ContractInterface {
 
         var car = Car.builder()
                 .ID(id)
-                .Make(make)
+                .Brand(make)
                 .Model(model)
                 .Color(color)
                 .Owner(owner)
@@ -74,7 +84,7 @@ public final class CarTransfer implements ContractInterface {
 
         var updatedCar = Car.builder()
                 .ID(id)
-                .Make(make)
+                .Brand(make)
                 .Model(model)
                 .Color(color)
                 .Owner(owner)
@@ -104,14 +114,43 @@ public final class CarTransfer implements ContractInterface {
         return oldOwner;
     }
 
+    @Transaction(name = "UpdateMaintenance")
+    public void updateMaintenance(Context ctx, String carId, String maintainedBy) {
+        assertExists(ctx, carId);
+
+        String maintKey = MAINT_PREFIX + carId;
+        CarMaintenance maint = CarMaintenance.builder()
+                .ID(carId)
+                .MaintainedBy(maintainedBy)
+                .build();
+
+        ctx.getStub().putStringState(maintKey, serialize(maint));
+    }
+
+    @Transaction(name = "ReadMaintenance", intent = TYPE.EVALUATE)
+    public String readMaintenance(Context ctx, String carId) {
+        String maintKey = MAINT_PREFIX + carId;
+        String maintJson = ctx.getStub().getStringState(maintKey);
+
+        if (maintJson == null || maintJson.isEmpty()) {
+            throw new ChaincodeException(String.format("No maintenance record found for car %s", carId));
+        }
+        return maintJson;
+    }
+
     @Transaction(name = "GetAllCars", intent = TYPE.EVALUATE)
     public String getAllCars(Context ctx) {
         var answer = new ArrayList<Car>();
 
         QueryResultsIterator<KeyValue> results = ctx.getStub().getStateByRange("", "");
         for (KeyValue result : results) {
-            Car car = deserialize(result.getStringValue(), Car.class);
-            answer.add(car);
+            try {
+                Car car = deserialize(result.getStringValue(), Car.class);
+                if (car.getBrand() != null) {
+                    answer.add(car);
+                }
+            } catch (Exception e) {
+            }
         }
 
         return serialize(answer);
