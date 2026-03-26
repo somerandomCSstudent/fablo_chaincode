@@ -7,21 +7,10 @@ import lombok.extern.jackson.Jacksonized;
 @Data
 @Builder(toBuilder = true)
 @Jacksonized
-public class Car {
+public class CarEntityMain {
     private final String ID;
     private final String Brand;
     private final String Model;
     private final String Color;
     private final String Owner;
-    private final int Mileage;
-
-    // These manual getters are needed because your code calls car.ID() and
-    // car.Owner()
-    public String ID() {
-        return ID;
-    }
-
-    public String Owner() {
-        return Owner;
-    }
 }
