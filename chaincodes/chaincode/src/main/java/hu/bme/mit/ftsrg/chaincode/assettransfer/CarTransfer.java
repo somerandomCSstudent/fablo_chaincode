@@ -20,14 +20,17 @@ public final class CarTransfer implements ContractInterface {
 
     @Transaction(name = "InitLedger")
     public void initLedger(Context ctx) {
-        createCar(ctx, "car1", "Toyota", "Corolla", "Blue", "Tomoko", "AutoShop");
+        createCar(ctx, "car1", "Toyota", "Corolla", "Blue", "Tomoko", "Joseph");
+        createCar(ctx, "car2", "Hyundai", "Kona", "White", "Pierre", "John");
+        createCar(ctx, "car3", "Volkswagen", "Golf", "Brown", "Andreas", "Gunther");
+        createCar(ctx, "car4", "Kia", "Sportage", "Green", "John", "Pierre");
     }
 
     @Transaction(name = "CreateCar")
     public String createCar(Context ctx, String id, String brand, String model, String color, String owner,
             String maintainedBy) {
         if (carExists(ctx, id)) {
-            throw new ChaincodeException("Car already exists: " + id);
+            throw new ChaincodeException("This car already exists: " + id);
         }
 
         // 1. Create Main Entity
@@ -77,7 +80,6 @@ public final class CarTransfer implements ContractInterface {
 
                 results.add(assemble(main, maint));
             } catch (Exception e) {
-                // Ignore non-car data
             }
         }
         return serialize(results);
@@ -97,9 +99,6 @@ public final class CarTransfer implements ContractInterface {
         ctx.getStub().putStringState(id, serialize(updated));
     }
 
-    /**
-     * Helper to assemble the components into the Business Object
-     */
     private CarBusinessObject assemble(CarEntityMain main, CarEntityMaintainer maint) {
         return CarBusinessObject.builder()
                 .ID(main.getID())
