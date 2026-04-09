@@ -3,8 +3,11 @@ package hu.bme.mit.ftsrg.chaincode.assettransfer;
 
 import static hu.bme.mit.ftsrg.chaincode.assettransfer.Serializer.*;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.hyperledger.fabric.contract.Context;
 import org.hyperledger.fabric.contract.ContractInterface;
 import org.hyperledger.fabric.contract.annotation.*;
@@ -14,11 +17,11 @@ import org.hyperledger.fabric.shim.ledger.KeyValue;
 import org.hyperledger.fabric.shim.ledger.QueryResultsIterator;
 import org.tinylog.Logger;
 
-@Contract(name = "car-transfer", info = @Info(title = "Car Transfer with Persistence Layer", version = "0.3.0"))
+@Contract(name = "car-transfer", info = @Info(title = "Car Transfer with CarSharding and Metaprogramming", version = "0.4.0"))
 @Default
 public final class CarTransfer implements ContractInterface {
 
-    private static final String MAINT_PREFIX = "MAINT_";
+    private static final String SHARD_PREFIX = "SHARD_";
 
     @Transaction(name = "InitLedger")
     public void initLedger(Context ctx) {
@@ -62,12 +65,12 @@ public final class CarTransfer implements ContractInterface {
 
     @Transaction(name = "TransferCar")
     public String transferCar(Context ctx, String id, String newOwner) {
-        CarBusinessObject car = this.getCar(ctx, id); // Hidden reassembly
+        CarBusinessObject car = this.getCar(ctx, id);
         String oldOwner = car.getOwner();
 
         car = car.toBuilder().Owner(newOwner).build();
 
-        this.putCar(ctx, car); // Hidden fragmentation
+        this.putCar(ctx, car);
         return oldOwner;
     }
 
@@ -78,8 +81,10 @@ public final class CarTransfer implements ContractInterface {
 
         for (KeyValue kv : states) {
             String key = kv.getKey();
-            if (key.startsWith(MAINT_PREFIX))
+
+            if (key.contains(SHARD_PREFIX)) {
                 continue;
+            }
 
             try {
                 results.add(this.getCar(ctx, key));
@@ -90,54 +95,62 @@ public final class CarTransfer implements ContractInterface {
         return serialize(results);
     }
 
-    // Persistence Logic: Fragmentation & Reassembly
     /**
-     * Splits the Business Object into Entity components and writes to ledger
+     * Reflectively shards a CarBusinessObject and writes multiple keys to the
+     * ledger.
      */
     private void putCar(Context ctx, CarBusinessObject car) {
-        // Shard into Main Entity
-        CarEntityMain main = CarEntityMain.builder()
-                .ID(car.getID()).Brand(car.getBrand()).Model(car.getModel())
-                .Color(car.getColor()).Owner(car.getOwner()).build();
+        List<List<String>> shardConfig = CarSharding.getShards();
+        String carId = car.getID();
 
-        // Shard into Maintainer Entity
-        CarEntityMaintainer maint = CarEntityMaintainer.builder()
-                .ID(car.getID()).MaintainedBy(car.getMaintainedBy()).build();
+        for (int i = 0; i < shardConfig.size(); i++) {
+            Map<String, Object> shardMap = new HashMap<>();
+            List<String> fieldNames = shardConfig.get(i);
 
-        // Physical Persistence
-        ctx.getStub().putStringState(main.getID(), serialize(main));
-        ctx.getStub().putStringState(MAINT_PREFIX + maint.getID(), serialize(maint));
+            for (String fieldName : fieldNames) {
+                try {
+                    Method getter = CarBusinessObject.class.getMethod("get" + fieldName);
+                    shardMap.put(fieldName, getter.invoke(car));
+                } catch (Exception e) {
+                    throw new ChaincodeException("Failed to reflectively read: " + fieldName, e);
+                }
+            }
+            ctx.getStub().putStringState(carId + "_" + SHARD_PREFIX + i, serialize(shardMap));
+        }
+        ctx.getStub().putStringState(carId, "MASTER");
     }
 
     /**
-     * Reads fragmented components from ledger and hydrates the Business Object
+     * Reflectively reassembles a CarBusinessObject by reading shards from the
+     * ledger.
      */
     private CarBusinessObject getCar(Context ctx, String id) {
-        String mainJson = ctx.getStub().getStringState(id);
-        String maintJson = ctx.getStub().getStringState(MAINT_PREFIX + id);
+        CarBusinessObject.CarBusinessObjectBuilder builder = CarBusinessObject.builder().ID(id);
+        List<List<String>> shardConfig = CarSharding.getShards();
 
-        if (mainJson == null || mainJson.isEmpty()) {
-            throw new ChaincodeException("Car Entity Main not found for ID: " + id);
+        for (int i = 0; i < shardConfig.size(); i++) {
+            String shardJson = ctx.getStub().getStringState(id + "_" + SHARD_PREFIX + i);
+            if (shardJson == null || shardJson.isEmpty())
+                continue;
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> shardMap = deserialize(shardJson, Map.class);
+
+            for (Map.Entry<String, Object> entry : shardMap.entrySet()) {
+                try {
+                    Method setter = builder.getClass().getMethod(entry.getKey(), String.class);
+                    setter.invoke(builder, entry.getValue().toString());
+                } catch (Exception e) {
+                    Logger.error("Method reflection failed for: " + entry.getKey());
+                }
+            }
         }
-
-        CarEntityMain main = deserialize(mainJson, CarEntityMain.class);
-        CarEntityMaintainer maint = (maintJson != null && !maintJson.isEmpty())
-                ? deserialize(maintJson, CarEntityMaintainer.class)
-                : CarEntityMaintainer.builder().ID(id).MaintainedBy("Unknown").build();
-
-        return CarBusinessObject.builder()
-                .ID(main.getID())
-                .Brand(main.getBrand())
-                .Model(main.getModel())
-                .Color(main.getColor())
-                .Owner(main.getOwner())
-                .MaintainedBy(maint.getMaintainedBy())
-                .build();
+        return builder.build();
     }
 
     @Transaction(name = "CarExists", intent = TYPE.EVALUATE)
     public boolean carExists(Context ctx, String id) {
         String res = ctx.getStub().getStringState(id);
-        return res != null && !res.isEmpty();
+        return res != null && !res.isEmpty() && !res.contains(SHARD_PREFIX);
     }
 }
