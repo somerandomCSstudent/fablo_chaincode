@@ -11,6 +11,7 @@ public class AssetMetaProvider {
 
     List<String> getShardsFor(Object o) {
         String name = o.getClass().getName();
-        return null;
+        List<String> shards = null;
+        return shards;
     }
 }

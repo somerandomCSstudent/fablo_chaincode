@@ -8,6 +8,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 import lombok.experimental.FieldDefaults;
+
+import java.util.List;
+
 import org.hyperledger.fabric.contract.annotation.DataType;
 import org.hyperledger.fabric.contract.annotation.Property;
 
@@ -20,9 +23,16 @@ import org.hyperledger.fabric.contract.annotation.Property;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class Asset {
 
-  @Property String ID;
-  @Property String Color;
-  @Property int Size;
-  @Property String Owner;
-  @Property int AppraisedValue;
+  @Property
+  String ID;
+  @Property
+  String Color;
+  @Property
+  int Size;
+  @Property
+  String Owner;
+  @Property
+  int AppraisedValue;
+
+  List<Shard> shards;
 }
