@@ -26,18 +26,19 @@ public final class CarTransfer implements ContractInterface {
     @Transaction(name = "InitLedger")
     public void initLedger(Context ctx) {
         List<CarBusinessObject> cars = List.of(
-                CarBusinessObject.builder().ID("car1").Brand("Toyota").Model("Corolla").Color("Blue").Owner("Tomoko")
-                        .MaintainedBy("Joseph").build(),
-                CarBusinessObject.builder().ID("car2").Brand("Hyundai").Model("Kona").Color("White").Owner("Pierre")
-                        .MaintainedBy("John").build(),
-                CarBusinessObject.builder().ID("car3").Brand("Volswagen").Model("Golf").Color("Brown").Owner("Andreas")
-                        .MaintainedBy("Gunther").build(),
-                CarBusinessObject.builder().ID("car4").Brand("Kia").Model("Golf").Color("Green").Owner("John")
-                        .MaintainedBy("Pierre").build());
+                CarBusinessObject.builder().idNum("car1").brand("Toyota").model("Corolla").color("Blue").owner("Tomoko")
+                        .maintainedBy("Joseph").build(),
+                CarBusinessObject.builder().idNum("car2").brand("Hyundai").model("Kona").color("White").owner("Pierre")
+                        .maintainedBy("John").build(),
+                CarBusinessObject.builder().idNum("car3").brand("Volswagen").model("Golf").color("Brown")
+                        .owner("Andreas")
+                        .maintainedBy("Gunther").build(),
+                CarBusinessObject.builder().idNum("car4").brand("Kia").model("Golf").color("Green").owner("John")
+                        .maintainedBy("Pierre").build());
 
         for (CarBusinessObject car : cars) {
             this.putCar(ctx, car);
-            Logger.info("Car {} initialized", car.getID());
+            Logger.info("Car {} initialized", car.getIdNum());
         }
     }
 
@@ -49,7 +50,7 @@ public final class CarTransfer implements ContractInterface {
         }
 
         CarBusinessObject car = CarBusinessObject.builder()
-                .ID(id).Brand(brand).Model(model).Color(color).Owner(owner).MaintainedBy(maintainedBy).build();
+                .idNum(id).brand(brand).model(model).color(color).owner(owner).maintainedBy(maintainedBy).build();
 
         this.putCar(ctx, car);
         return serialize(car);
@@ -68,7 +69,7 @@ public final class CarTransfer implements ContractInterface {
         CarBusinessObject car = this.getCar(ctx, id);
         String oldOwner = car.getOwner();
 
-        car = car.toBuilder().Owner(newOwner).build();
+        car = car.toBuilder().owner(newOwner).build();
 
         this.putCar(ctx, car);
         return oldOwner;
@@ -100,8 +101,9 @@ public final class CarTransfer implements ContractInterface {
      * ledger.
      */
     private void putCar(Context ctx, CarBusinessObject car) {
-        List<List<String>> shardConfig = CarSharding.getShards();
-        String carId = car.getID();
+        CarSharding sharding = new CarSharding();
+        List<List<String>> shardConfig = sharding.getShards();
+        String carId = car.getIdNum();
 
         for (int i = 0; i < shardConfig.size(); i++) {
             Map<String, Object> shardMap = new HashMap<>();
@@ -125,8 +127,9 @@ public final class CarTransfer implements ContractInterface {
      * ledger.
      */
     private CarBusinessObject getCar(Context ctx, String id) {
-        CarBusinessObject.CarBusinessObjectBuilder builder = CarBusinessObject.builder().ID(id);
-        List<List<String>> shardConfig = CarSharding.getShards();
+        CarBusinessObject.CarBusinessObjectBuilder builder = CarBusinessObject.builder().idNum(id);
+        CarSharding sharding = new CarSharding();
+        List<List<String>> shardConfig = sharding.getShards();
 
         for (int i = 0; i < shardConfig.size(); i++) {
             String shardJson = ctx.getStub().getStringState(id + "_" + SHARD_PREFIX + i);
