@@ -96,6 +96,12 @@ public final class CarTransfer implements ContractInterface {
         return serialize(results);
     }
 
+    @Transaction(name = "CarExists", intent = TYPE.EVALUATE)
+    public boolean carExists(Context ctx, String id) {
+        String res = ctx.getStub().getStringState(id);
+        return res != null && !res.isEmpty() && !res.contains(SHARD_PREFIX);
+    }
+
     /**
      * Reflectively shards a CarBusinessObject and writes multiple keys to the
      * ledger.
@@ -151,9 +157,4 @@ public final class CarTransfer implements ContractInterface {
         return builder.build();
     }
 
-    @Transaction(name = "CarExists", intent = TYPE.EVALUATE)
-    public boolean carExists(Context ctx, String id) {
-        String res = ctx.getStub().getStringState(id);
-        return res != null && !res.isEmpty() && !res.contains(SHARD_PREFIX);
-    }
 }

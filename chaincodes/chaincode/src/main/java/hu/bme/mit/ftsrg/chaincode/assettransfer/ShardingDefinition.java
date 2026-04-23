@@ -2,7 +2,7 @@ package hu.bme.mit.ftsrg.chaincode.assettransfer;
 
 import java.util.List;
 
-public interface ShardingDefintion {
+public interface ShardingDefinition {
 
     List<List<String>> getShards();
 }

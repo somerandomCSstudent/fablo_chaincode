@@ -2,7 +2,7 @@ package hu.bme.mit.ftsrg.chaincode.assettransfer;
 
 import java.util.List;
 
-public class CarSharding implements ShardingDefintion {
+public class CarSharding implements ShardingDefinition {
     public List<List<String>> getShards() {
         return List.of(
                 List.of("Brand", "Model"), // Shard 0: Identity
